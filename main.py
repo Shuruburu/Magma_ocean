@@ -27,14 +27,35 @@ def Interate():
 # find the expected atmosphere
 # plotiing of the shit, some statistocs connected to plotting and the variance 
 if __name__=="__main__":
+    
     #guess = np.linspace(0, 10, 500)
     #Examples.Monte_Carlo()
     data = load.Load_the_pickle(load.pickle100T280())
+    Plots =al.Plots(data)
     keys, columns, values =al.Get_species_elements(data, start_index=0, max_elements=14)
     most =al.classify_the_atmosphere(data, keys, "volume_mixing_ratio")
-    print(most)
-    filtered =al.Filter_out_data(data, "volume_mixing_ratio")
+    filtered =al.Filter_out_data(data, "volume_mixing_ratio", tol = -5)
+    Plots.Plot_general_log("CO2_g", "N2_g", "volume_mixing_ratio", "volume_mixing_ratio")
+    Plots.Plot_general_log("CO2_g", "H2O_g", "volume_mixing_ratio", "volume_mixing_ratio")
+    Plots.Plot_filtered(
+        "CO2_g",
+        "N2_g",
+        "volume_mixing_ratio",
+        [filtered["CO2_g"], filtered["N2_g"]] , filtered["H2O_g"]
+        )
+    Plots.Plot_filtered(
+        "CO2_g",
+        "H2O_g",
+        "volume_mixing_ratio",
+        [filtered["CO2_g"], filtered["H2O_g"]], filtered["N2_g"]
+    )
 
+    Plots.Plot_filtered(
+        "N2_g",
+        "H2O_g",
+        "volume_mixing_ratio",
+        [filtered["N2_g"], filtered["H2O_g"]] ,filtered["CO2_g"]
+    )
     rel_filtered = al.Filter_out_data_relative(data, "volume_mixing_ratio", most, tol = -1)
     
     a =al.Histograms(filtered)

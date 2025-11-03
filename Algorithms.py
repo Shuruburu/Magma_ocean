@@ -13,7 +13,7 @@ from scipy.stats import norm
 import matplotlib.pyplot as plt
 import logging
 import numpy as np
-
+import matplotlib.patches as mpatches
 
 
 
@@ -321,6 +321,80 @@ def Give_the_label(X_new, sigma, mu, pi):
     probs /= (probs.sum(axis=1, keepdims=True) + 1e-12)
     
     return select_max(probs)
+
+class Plots:
+    def __init__(self, data):
+        self.color_map = {
+            0: "orange",
+        1: "green",
+        2: "blue",
+        3: "red",
+        4: "yellow",
+        5: "purple",
+        6: "pink",
+        7: "brown",
+        8: "black",
+        9: "white"
+            }   
+        self.data = data
+        self.save = "/home/shurubura/Documents/project/Magma/plots/"
+    def Mask(self, filtered_data):
+        # Ensure all elements are boolean arrays
+        bool_lists = [[bool(x) for x in lst] for lst in filtered_data]
+    
+        # Elementwise AND across all arrays
+        mask = [all(values) for values in zip(*bool_lists)]
+    
+        return mask
+    def Plot_filtered(self, key1, key2, column, filtered_data, labels):
+        raw_x = self.data[key1][column]
+        raw_y = self.data[key2][column]
+        raw_labels = np.array( labels)
+        
+        mask = self.Mask(filtered_data)
+    
+        x = raw_x[mask]
+        y = raw_y[mask]
+        labels = raw_labels[mask]
+        # Assign colors
+        color = [self.color_map[item] for item in labels]
+        #print(color)
+        # Scatter plot
+        plt.figure(figsize=(8,6))
+        scatter = plt.scatter(np.log10(x), np.log10(y), c=color)
+    
+        plt.xlabel(f"{key1} (log10)")
+        plt.ylabel(f"{key2} (log10)")
+        plt.title(f"{key1} vs {key2} in {column}")
+        plt.grid(True, which='both', ls='--')
+    
+        # Create legend
+        unique_labels = np.unique(labels)
+        patches = [mpatches.Patch(color=self.color_map[label], label=str(label)) for label in unique_labels]
+        plt.legend(handles=patches, title="Labels", bbox_to_anchor=(1.05, 1), loc='upper left')
+    
+        # Save and show
+        plt.tight_layout()
+        plt.savefig("/home/shurubura/Documents/project/Magma/plots/{} vs {}. with 3 element.png".format(key1, key2), dpi=300)
+        plt.show()
+    def Plot_general_log(self, key1, key2 , column, column1):
+        x = self.data[key1][column]
+        y = self.data[key2][column1]
+        
+        plt.figure(figsize=(8,6))
+        scatter = plt.scatter(np.log10(x), np.log10(y))
+    
+        plt.xlabel(f"{key1} (log10)")
+        plt.ylabel(f"{key2} (log10)")
+        plt.title(f"{key1} vs {key2} in {column}")
+        plt.grid(True, which='both', ls='--')
+        plt.tight_layout()
+        plt.savefig("/home/shurubura/Documents/project/Magma/plots/{} vs {}. with 3 element.png".format(key1, key2), dpi=300)
+        plt.show()
+
+
+
+
 def Plot_the_Key_data(data, key,  x_axis, y_axis, log =False ):
     if log == False:
         plt.scatter(data[key][x_axis].to_numpy(), data[key][y_axis].to_numpy(),label  = key )
@@ -337,22 +411,7 @@ def Plot_the_Key_data(data, key,  x_axis, y_axis, log =False ):
         plt.savefig("/home/shurubura/Documents/project/Magma/plots")
         plt.grid(True, which='both', ls='--')
         plt.show()
-def Plot_general(data, key1, key2,  x_axis, y_axis, log =False ):
-    if log == False:
-        plt.scatter(data[key1][x_axis].to_numpy(), data[key2][y_axis].to_numpy(),label  = key1 )
-        plt.xlabel(x_axis)
-        plt.ylabel(y_axis)
-        plt.title(key1)
-        plt.savefig("/home/shurubura/Documents/project/Magma/plots")
-        plt.show()
-    else:
-        plt.scatter(np.log10(data[key1][x_axis].to_numpy()), np.log10(data[key2][y_axis].to_numpy()),label  = key1 )
-        plt.xlabel(x_axis)
-        plt.ylabel(y_axis)
-        plt.title("{} vs {}".format(x_axis ,y_axis ))
-        plt.savefig("/home/shurubura/Documents/project/Magma/plots")
-        plt.grid(True, which='both', ls='--')
-        plt.show()
+
     
     
 def Integrate(data, keys, column):
@@ -371,21 +430,26 @@ def Filter_out_data(data, column,tol = -10):
     
     list1 = []
     for i,  element  in enumerate(keys):
+        print(element)
         for j, values in enumerate(data[element][column]):
+            
+            print(np.log10(values)) 
+            
             if np.log10(values) > tol:
+                
                 list1.append(1)
             else:
                 list1.append(0)
         filter_data[element] = list1
         list1 = []
     return filter_data
-def Filter_out_data_relative(data, column,dominant,tol = -10):
+def Filter_out_data_relative(data, column,dominant,tol = 2/100):
     keys, columns, values =Get_species_elements(data, start_index=0, max_elements=14)
     filter_data = {}
     list1 = []
     for i,  element  in enumerate(keys):
         for j, values in enumerate(data[element][column]):
-            if np.log10(values)/ np.log10(data[dominant[j]][column][j]) > tol:
+            if values> tol * data[dominant[j]][column][j]:
                 list1.append(1)
             else:
                 list1.append(0)
