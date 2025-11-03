@@ -1,0 +1,411 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Oct 12 14:50:10 2025
+
+@author: root
+"""
+#
+Earth_mass = 5.97e24
+#
+
+from scipy.stats import norm
+import matplotlib.pyplot as plt
+import logging
+import numpy as np
+
+
+
+
+
+# List of species used in the simulation of Traphiest 1e atmosphere
+
+
+def Get_species_elements(data, start_key=None, start_index=0, max_elements=6):
+    """
+    Extracts keys, values (as numpy arrays), and columns from a dictionary.
+
+    Parameters:
+    - data: dict of {key: pandas.DataFrame or Series}
+    - start_key: key name to start from (overrides start_index if given)
+    - start_index: index to start from if start_key is None
+    - max_elements: maximum number of elements to take (None = all)
+
+    Returns:
+    - keys: list of keys from data
+    - columns: list of columns of each value
+    - values: list of numpy arrays from each value
+    """
+    keys = []
+    values = []
+    columns = []
+
+    # Convert dict to list of items for slicing
+    items = list(data.items())
+
+    # Determine starting index
+    if start_key is not None:
+        try:
+            start_index = [k for k, v in items].index(start_key)
+        except ValueError:
+            raise ValueError(f"Key '{start_key}' not found in the dictionary.")
+
+    # Slice items according to start_index and max_elements
+    if max_elements is not None:
+        sliced_items = items[start_index:start_index + max_elements]
+    else:
+        sliced_items = items[start_index:]
+
+    # Collect keys, values, and columns
+    for key, value in sliced_items:
+        keys.append(key)
+        values.append(value.to_numpy())
+        if hasattr(value, 'columns'):  # DataFrame
+            columns.append(list(value.columns))
+        else:  # Series
+            columns.append([value.name] if value.name else ['value'])
+
+    return keys, columns, values
+def Find_index_in_column(columns,name):
+    for i in range(len(columns)):
+        if name == columns[i]:
+            return i
+    return -1
+
+def Plot_specific_column(data , column, x_axis,  y_axis):
+    plt.scatter(data[x_axis][column].to_numpy()/Earth_mass, data[y_axis][column].to_numpy()/Earth_mass,label  = column )
+    plt.xlabel(x_axis)
+    plt.ylabel(y_axis)
+    plt.title(column)
+    plt.savefig("/home/shurubura/Documents/project/Magma/plots/{}".format(column))
+    plt.show()
+
+
+
+def to_python_number(x):
+    """
+    Convert a NumPy numeric type to a native Python int or float.
+    """
+    if isinstance(x, (np.integer, int)):
+        return int(x)
+    elif isinstance(x, (np.floating, float)):
+        return float(x)
+    else:
+        raise TypeError(f"Cannot convert type {type(x)} to Python number.")
+        
+        
+        
+#TO DO finishing writting this shit 
+def Integrate_all(data, keys):
+    """
+    Computes the average value of specified columns for each key in a dataset,
+    returning a dictionary with the same top-level key names as the input `data`.
+
+    Parameters:
+        data (dict): A dictionary where each key maps to a DataFrame or similar data structure.
+        keys (list): A list of keys (subset of data.keys()) to process.
+        columns (list): A list of column names whose mean values will be computed.
+
+    Returns:
+        dict: A dictionary in the format:
+              {
+                  key1: {column1: avg_value, column2: avg_value, ...},
+                  key2: {column1: avg_value, column2: avg_value, ...},
+                  ...
+              }
+    """
+
+    results = {}  # Dictionary to store results per key
+
+    # Iterate through each key
+    for key in keys:
+        if key not in data:
+            continue  # Skip keys that aren't in the data dictionary
+
+        results[key] = {}  # Create a nested dictionary for this key
+
+        # Loop through each requested column
+        for column in data[key].keys():
+            if column not in data[key].columns:
+                continue  # Skip columns that don't exist in this DataFrame
+
+            # Extract the column data as a NumPy array
+            column_data = data[key][column].to_numpy()
+
+            # Compute the mean value safely
+            avg = sum(column_data) / column_data.size if column_data.size > 0 else float('nan')
+
+            # Store the result
+            results[key][column] = to_python_number(avg)
+
+    return results
+
+
+
+        
+
+
+def Integrate_Keys(data, keys, column, max1= False):
+    """
+    Computes the average value of a specified column for each key in a dataset.
+
+    Parameters:
+        data (dict): A dictionary where each key maps to a DataFrame or similar data structure.
+        keys (list): A list of keys to iterate through in 'data'.
+        column (str): The column name whose mean value will be computed.
+
+    Returns:
+        list: A list of [key, average_value] pairs.
+    """
+
+    values = []  # Initialize an empty list to store [key, average_value] pairs
+    max_value = 0 
+    # Loop through each key in the provided list
+    for i , key in enumerate(keys):
+        # Extract the column as a NumPy array for the current key's data
+        column_data = data[key][column].to_numpy()
+
+        # Compute the average (mean) value of the column
+        temp = sum(column_data) / column_data.size
+        if max1  and max_value < temp:
+            max_value = temp
+            max_index = i
+        # Append the result as a pair [key, average_value] to the list
+        values.append([key, temp])
+
+    # Return the complete list of results
+    if max1:
+        return values , max_index
+    else:
+        return values
+def classify_the_atmosphere(data, keys, column):
+    """
+    Find, for each row (index j), which dataset (key) has the largest value
+    in the specified column.
+
+    Parameters
+    ----------
+    data : dict
+        A dictionary where each value is a pandas DataFrame (or Series).
+        Example: data["sensor1"]["temperature"] → column of values.
+    keys : list
+        List (or array) of keys corresponding to the items in 'data'.
+    column : str
+        Name of the column to compare between datasets.
+
+    Returns
+    -------
+    list
+        List of indices (corresponding to 'keys') indicating which dataset
+        had the highest value in each row.
+    """
+
+    max_values = []   # Stores the maximum value found for each row (optional info)
+    max_indices = []  # Stores which key had the maximum value for each row
+    # Loop through each row index (0 → 9999)
+    for j in range(10000):
+        current_max = float('-inf')  # Reset current maximum for this row
+        current_max_index = None     # Reset index of dataset with max value
+
+        # Loop through each dataset
+        for i in range(len(keys)):
+            # Extract the j-th value in the given column for this dataset
+            value = data[keys[i]][column].to_numpy()[j]
+
+            # If this value is larger than the current max, update
+            if value >= current_max:
+                current_max = value
+                current_max_index = keys[i]
+
+        # Store results for this row
+        max_values.append(current_max)
+        max_indices.append(current_max_index)
+
+    # Return the indices of the datasets with the highest value per row
+    return max_indices
+def Compare_arrays(list1 , list2):
+    for i , element in enumerate((list1)):
+        if element!= list2[i]:
+            print(" Here {}".format(i))
+    return
+
+def Create_mash_list(list1, list2):
+    list2d  = [[]]
+    for i in range(len(list1)):
+        
+        list2d.append([list1[i] , list2[i]])
+        
+    return list2d
+
+def EM_algorithm(X, n_classes=4, n_iter=200, tol=1e-6, random_state=0, Guess=0):
+    np.random.seed(random_state)
+    n, d = X.shape
+
+    # --- Initialization (no KMeans) ---
+    # Choose random data points as initial means
+    mu = np.random.rand(5, 2)
+    
+    # Initialize sigma as global std
+    sigma = np.ones((n_classes, d)) * X.std(axis=0)
+    pi = np.ones(n_classes) / n_classes
+    eps = 1e-12
+    prev_ll = -np.inf
+
+    for it in range(n_iter):
+        # --- E-step ---
+        log_px_given_k = np.zeros((n, n_classes))
+        for k in range(n_classes):
+            # sum log pdfs for independent dimensions
+            for j in range(d):
+                log_px_given_k[:, k] += np.log(norm.pdf(X[:, j], mu[k, j], sigma[k, j]) + eps)
+        
+        log_num = np.log(pi + eps)[None, :] + log_px_given_k
+
+        # log-sum-exp for normalization
+        a_max = np.max(log_num, axis=1, keepdims=True)
+        log_den = a_max + np.log(np.sum(np.exp(log_num - a_max), axis=1, keepdims=True))
+        log_resp = log_num - log_den
+        gamma = np.exp(log_resp)
+
+        # --- M-step ---
+        N_k = gamma.sum(axis=0)
+        pi = N_k / n
+        mu = (gamma.T @ X) / N_k[:, None]
+
+        # Update variances
+        sigma = np.zeros((n_classes, d))
+        for k in range(n_classes):
+            diff = X - mu[k]
+            sigma[k] = np.sqrt(np.sum(gamma[:, k][:, None] * diff**2, axis=0) / (N_k[k] + eps))
+            sigma[k] = np.maximum(sigma[k], 1e-3)  # prevent collapse
+
+        # --- Log-likelihood ---
+        ll = np.sum(log_den)
+        if abs(ll - prev_ll) < tol:
+            print(f"Converged at iteration {it}")
+            break
+        prev_ll = ll
+
+    return mu, sigma, pi
+
+def select_max(prop):
+    max_value = 0
+    max_index = np.empty(prop.shape[0])
+    for i in range(prop.shape[0]):
+        for k in range(prop.shape[1]):
+            if prop[i][k] >= max_value:
+                max_value = prop[i][k]
+                max_index[i] = k
+        max_value = 0
+    return max_index
+def Give_the_label(X_new, sigma, mu, pi):
+    """
+    X_new: (n_points, 2)
+    mu: (n_classes, 2)
+    sigma: (n_classes, 2)
+    pi: (n_classes,)
+    Returns: (n_points, n_classes) posterior probabilities
+    """
+    n_points = X_new.shape[0]
+    n_classes = mu.shape[0]
+    probs = np.zeros((n_points, n_classes))
+    
+    for k in range(n_classes):
+        # compute P(X_new | z=k) under Gaussian Naive Bayes
+        p = np.ones(n_points)
+        for j in range(2):  # for each feature
+            p *= norm.pdf(X_new[:, j], mu[k, j], sigma[k, j])
+        probs[:, k] = pi[k] * p  # multiply by class prior
+    
+    # normalize to get posterior probabilities
+    probs /= (probs.sum(axis=1, keepdims=True) + 1e-12)
+    
+    return select_max(probs)
+def Plot_the_Key_data(data, key,  x_axis, y_axis, log =False ):
+    if log == False:
+        plt.scatter(data[key][x_axis].to_numpy(), data[key][y_axis].to_numpy(),label  = key )
+        plt.xlabel(x_axis)
+        plt.ylabel(y_axis)
+        plt.title(key)
+        plt.savefig("/home/shurubura/Documents/project/Magma/plots")
+        plt.show()
+    else:
+        plt.scatter(np.log10(data[key][x_axis].to_numpy()), np.log10(data[key][y_axis].to_numpy()),label  = key )
+        plt.xlabel(x_axis)
+        plt.ylabel(y_axis)
+        plt.title("{} vs {}".format(x_axis ,y_axis ))
+        plt.savefig("/home/shurubura/Documents/project/Magma/plots")
+        plt.grid(True, which='both', ls='--')
+        plt.show()
+def Plot_general(data, key1, key2,  x_axis, y_axis, log =False ):
+    if log == False:
+        plt.scatter(data[key1][x_axis].to_numpy(), data[key2][y_axis].to_numpy(),label  = key1 )
+        plt.xlabel(x_axis)
+        plt.ylabel(y_axis)
+        plt.title(key1)
+        plt.savefig("/home/shurubura/Documents/project/Magma/plots")
+        plt.show()
+    else:
+        plt.scatter(np.log10(data[key1][x_axis].to_numpy()), np.log10(data[key2][y_axis].to_numpy()),label  = key1 )
+        plt.xlabel(x_axis)
+        plt.ylabel(y_axis)
+        plt.title("{} vs {}".format(x_axis ,y_axis ))
+        plt.savefig("/home/shurubura/Documents/project/Magma/plots")
+        plt.grid(True, which='both', ls='--')
+        plt.show()
+    
+    
+def Integrate(data, keys, column):
+    temp = np.zeros(data[keys[0]][column].to_numpy().shape)
+    for i, key in enumerate(keys):
+        temp  = temp + data[key][column].to_numpy()
+    return temp
+
+
+def Get_a_specific_property(columns, name, values):
+    index =Find_index_in_column(columns, name)
+    values = 0
+def Filter_out_data(data, column,tol = -10):
+    keys, columns, values =Get_species_elements(data, start_index=0, max_elements=14)
+    filter_data = {}
+    
+    list1 = []
+    for i,  element  in enumerate(keys):
+        for j, values in enumerate(data[element][column]):
+            if np.log10(values) > tol:
+                list1.append(1)
+            else:
+                list1.append(0)
+        filter_data[element] = list1
+        list1 = []
+    return filter_data
+def Filter_out_data_relative(data, column,dominant,tol = -10):
+    keys, columns, values =Get_species_elements(data, start_index=0, max_elements=14)
+    filter_data = {}
+    list1 = []
+    for i,  element  in enumerate(keys):
+        for j, values in enumerate(data[element][column]):
+            if np.log10(values)/ np.log10(data[dominant[j]][column][j]) > tol:
+                list1.append(1)
+            else:
+                list1.append(0)
+        filter_data[element] = list1
+        list1 = []
+    return filter_data
+
+def Histograms(filtered_data):
+    my_list = []
+    counter = {}
+    for j in range(10000):
+        for element in filtered_data.keys():
+            if filtered_data[element][j] == 1:
+               my_list.append(element)
+        item = str(my_list)
+        my_list = []
+        if item in counter:
+            counter[item] += 1
+        else:
+            counter[item] = 1
+
+    return counter
+    
