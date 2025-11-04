@@ -11,55 +11,45 @@ import pandas as pd
 import scripts
 import sys
 np.set_printoptions(threshold=sys.maxsize)
-def Excel_data():
-    excel_data, columns = load.Load_the_excel(load.phi100T280())
-
-def Pickle_data():
-    return
-
-def Create_a_plot(array):
-    return
-
-def Interate():
-    return 
 
 
 # find the expected atmosphere
 # plotiing of the shit, some statistocs connected to plotting and the variance 
+def Selection():
+    data = load.Load_the_pickle(load.pickle100T280())
+    Plots =al.Plots(data)
+    keys, columns, values =al.Get_species_elements(data, start_index=0, max_elements=14)
+    most = al.classify_the_atmosphere(data, keys, "volume_mixing_ratio")
+    rel_filtered = al.Filter_out_data_relative(data, "volume_mixing_ratio", most)
+    selected = al.Seleciton(rel_filtered)
+    
+    preselected=al.Select_unique(selected)
+    return preselected, most
+
+def Simulate(keys ,arg):
+    # zrobic dwa scrypty, w ktorym jednym dostaje klucze do tablicy a w drugim iteruje po tych kluczach
+    # taki ma byc plan na ta symulacje
+    return
+def Bash_keys(keys):
+    for key in keys:
+        print(key, end= " ")
+    
 if __name__=="__main__":
     
     #guess = np.linspace(0, 10, 500)
     #Examples.Monte_Carlo()
     data = load.Load_the_pickle(load.pickle100T280())
     Plots =al.Plots(data)
-    keys, columns, values =al.Get_species_elements(data, start_index=0, max_elements=14)
-    most =al.classify_the_atmosphere(data, keys, "volume_mixing_ratio")
-    filtered =al.Filter_out_data(data, "volume_mixing_ratio", tol = -5)
-    Plots.Plot_general_log("CO2_g", "N2_g", "volume_mixing_ratio", "volume_mixing_ratio")
-    Plots.Plot_general_log("CO2_g", "H2O_g", "volume_mixing_ratio", "volume_mixing_ratio")
-    Plots.Plot_filtered(
-        "CO2_g",
-        "N2_g",
-        "volume_mixing_ratio",
-        [filtered["CO2_g"], filtered["N2_g"]] , filtered["H2O_g"]
-        )
-    Plots.Plot_filtered(
-        "CO2_g",
-        "H2O_g",
-        "volume_mixing_ratio",
-        [filtered["CO2_g"], filtered["H2O_g"]], filtered["N2_g"]
-    )
-
-    Plots.Plot_filtered(
-        "N2_g",
-        "H2O_g",
-        "volume_mixing_ratio",
-        [filtered["N2_g"], filtered["H2O_g"]] ,filtered["CO2_g"]
-    )
-    rel_filtered = al.Filter_out_data_relative(data, "volume_mixing_ratio", most, tol = -1)
+    ratio =al.Element_ratios(data)
     
-    a =al.Histograms(filtered)
-    print("The absolute_treshold {}".format(a))
-    a1 =al.Histograms(rel_filtered)
-    print("The relative_treshold {}".format(a1))
-    print(a)
+    preselected, most = Selection()
+    keys = al.string_fragmentation("'H2O_g' ,'N2_g'")
+    
+    selcted = al.Selection_of_mixing(preselected)
+    mixing_ratio =  al.Mixing_ratio(data, "volume_mixing_ratio" , selcted)
+    to_be_writen_file =al.Add_the_domiant_species(mixing_ratio, most)
+    lines = load.Write_In_the_file("/home/shurubura/Documents/VULCAN/vulcan_cfg.py")
+    Bash_keys(mixing_ratio.keys())
+    if sys.argv == "get_the_keys":
+        Bash_keys(mixing_ratio.keys())
+    

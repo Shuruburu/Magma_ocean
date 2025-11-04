@@ -391,9 +391,18 @@ class Plots:
         plt.tight_layout()
         plt.savefig("/home/shurubura/Documents/project/Magma/plots/{} vs {}. with 3 element.png".format(key1, key2), dpi=300)
         plt.show()
-
-
-
+    def Histograms(self, bins, name  = " "):
+        counts = bins.values()
+        labels = bins.keys()
+        plt.figure(figsize=(12, 6))
+        plt.bar(range(len(counts)), counts, color='skyblue')
+        plt.xticks(range(len(labels)), labels, rotation=90)  # rotate labels for readability
+        plt.xlabel('Gas Combinations')
+        plt.ylabel('Count')
+        plt.title('Histogram of {} Gas Mixtures'.format(name))
+        plt.savefig("/home/shurubura/Documents/project/Magma/plots/Histogram_{}.png".format(name))
+        plt.tight_layout()  # adjust layout to prevent label cutoff
+        plt.show()
 
 def Plot_the_Key_data(data, key,  x_axis, y_axis, log =False ):
     if log == False:
@@ -430,10 +439,8 @@ def Filter_out_data(data, column,tol = -10):
     
     list1 = []
     for i,  element  in enumerate(keys):
-        print(element)
         for j, values in enumerate(data[element][column]):
             
-            print(np.log10(values)) 
             
             if np.log10(values) > tol:
                 
@@ -443,7 +450,7 @@ def Filter_out_data(data, column,tol = -10):
         filter_data[element] = list1
         list1 = []
     return filter_data
-def Filter_out_data_relative(data, column,dominant,tol = 2/100):
+def Filter_out_data_relative(data, column,dominant,tol = 2/1000):
     keys, columns, values =Get_species_elements(data, start_index=0, max_elements=14)
     filter_data = {}
     list1 = []
@@ -472,4 +479,111 @@ def Histograms(filtered_data):
             counter[item] = 1
 
     return counter
+def Seleciton(filtered_data):
+    my_list = []
+    main_list  = []
+    for j in range(10000):
+        
+        for element in filtered_data.keys():
+            if filtered_data[element][j] == 1:
+               my_list.append(element)
+        item = str(my_list)
+        my_list = []
+        main_list.append([j, item])
+
+    return main_list
+def Select_unique(selected_data):
+    unique = {}
+    for elements in selected_data:
+            if elements[1] in unique:
+                continue
+            else:
+                unique[elements[1]]= elements[0]
+    return unique
+def Prepare_to_write(data, selected):
+    dictionary = {}
+    for elements in selected.keys():
+        #Get all the dictionary data that I need 
+        dictionary[elements] =data[:][:][selected[elements]]
+        #
+    return dictionary
+def Element_ratios(data):
+    keys, columns, values =Get_species_elements(data, start_index=18, max_elements=6)
+    ratio = {}
+    for elements in keys:
+        ratio["{}/element_H".format(elements)]=data[elements]["total_number"] / data["element_H"]["total_number"] 
+    return ratio
+
+
+
+
+
+
+
+
+"""
+def Mixing_ratio(data, preselected):
+    keys, columns, values =Get_species_elements(data, start_index=0, max_elements=14)
+    ratio = {}
+    for elements in keys:
+        ratio[elements]=data[elements]["volume_mixing_ratio"] 
+    return ratio
+"""
+
+def Mixing_ratio(data, column ,preselected):
+    ratio = {} 
+    for elements in preselected:
+        ratio[elements[1]] = {}
+        for species in elements[0]:
+            value = data[species][column][elements[1]]
+            ratio[elements[1]][species] = float(value)
+    return ratio
+
+def string_fragmentation(key):
+    fragments = []
+    start = None  # track position of opening quote
+
+    for i, char in enumerate(key):
+        if char == "'":
+            if start is None:
+                # mark where the quoted part starts
+                start = i+1
+            else:
+                # closing quote found → extract substring
+                fragments.append(key[start:i])
+                start = None  # reset for next pair
+
+    return fragments
+def Selection_of_mixing(preselected_data):
+    list1 =[]
+    for key in preselected_data.keys():
+        list1.append([string_fragmentation(key) ,  preselected_data[key]])
     
+    
+    return list1
+def Add_the_domiant_species(mixing_ratio, dominant):
+    for key in mixing_ratio.keys():
+        mixing_ratio[key]["dominant"] = dominant[key]
+    return mixing_ratio
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
