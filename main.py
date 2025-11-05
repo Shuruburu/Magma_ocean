@@ -43,13 +43,13 @@ if __name__=="__main__":
     ratio =al.Element_ratios(data)
     
     preselected, most = Selection()
-    keys = al.string_fragmentation("'H2O_g' ,'N2_g'")
+    keys = al.string_fragmentation("'H2O_g' ,'N2_g'" , "'")
     
     selcted = al.Selection_of_mixing(preselected)
     mixing_ratio =  al.Mixing_ratio(data, "volume_mixing_ratio" , selcted)
     to_be_writen_file =al.Add_the_domiant_species(mixing_ratio, most)
     lines = load.Write_In_the_file("/home/shurubura/Documents/VULCAN/vulcan_cfg.py")
-    Bash_keys(mixing_ratio.keys())
+    
     if sys.argv == "get_the_keys":
         Bash_keys(mixing_ratio.keys())
     

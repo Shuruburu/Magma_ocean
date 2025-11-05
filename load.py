@@ -5,7 +5,7 @@ Created on Tue Oct 14 13:34:06 2025
 
 @author: root
 """
-
+import Algorithms as al
 import pandas as pd
 import pickle 
 import numpy 
@@ -31,13 +31,35 @@ def Save_data(data):
 
     print("Data saved to 'data.pkl'")
 
-
-
-
+def Find_eddit_in_the_file(line):
+    if "atom_list" in line:
+        keys = al.string_fragmentation(line, "'")
+        return keys
+    else:
+        return None
+def Find_the_elements(line, keys):
+   i = 0
+   for key in keys:
+       if "{}_H".format(key) in line:
+           while line[i]!= line[-1]:
+               if line[i].isdigit() == True:
+                   #load the data from the dictionary 
+                   print(line[i], end= " ")
+               i = i+1
+   return line 
 
 def Write_In_the_file(filename):
+    lines = "The first line"
+    keys = None
     with open(filename ,  "r") as f :
-        lines =f.readlines()
+         while lines !="":
+             if(lines[0]) !='#':
+                 if keys ==None:
+                     keys=Find_eddit_in_the_file(lines)
+                 else:
+                     Find_the_elements(lines, keys)
+             lines=f.readline()
+    
     return lines
 
 def Load_the_excel(filename):

@@ -539,12 +539,12 @@ def Mixing_ratio(data, column ,preselected):
             ratio[elements[1]][species] = float(value)
     return ratio
 
-def string_fragmentation(key):
+def string_fragmentation(key, indicator):
     fragments = []
     start = None  # track position of opening quote
 
     for i, char in enumerate(key):
-        if char == "'":
+        if char == indicator:
             if start is None:
                 # mark where the quoted part starts
                 start = i+1
@@ -557,7 +557,7 @@ def string_fragmentation(key):
 def Selection_of_mixing(preselected_data):
     list1 =[]
     for key in preselected_data.keys():
-        list1.append([string_fragmentation(key) ,  preselected_data[key]])
+        list1.append([string_fragmentation(key, "'") ,  preselected_data[key]])
     
     
     return list1
@@ -565,7 +565,7 @@ def Add_the_domiant_species(mixing_ratio, dominant):
     for key in mixing_ratio.keys():
         mixing_ratio[key]["dominant"] = dominant[key]
     return mixing_ratio
-
+    
 
 
 
