@@ -492,14 +492,26 @@ def Seleciton(filtered_data):
         main_list.append([j, item])
 
     return main_list
-def Select_unique(selected_data):
+def Select_unique(selected_data, not_rel_filtered_data):
     unique = {}
-    for elements in selected_data:
+    unique_output = {}
+    unique1 = {}
+    for n, elements in enumerate(selected_data):
             if elements[1] in unique:
                 continue
             else:
                 unique[elements[1]]= elements[0]
-    return unique
+                unique_output[elements[0]] = elements[1]
+                unique1[elements[0]] = not_rel_filtered_data[n][1]
+    return unique_output, unique1
+
+
+
+
+
+
+
+
 def Prepare_to_write(data, selected):
     dictionary = {}
     for elements in selected.keys():
@@ -531,12 +543,14 @@ def Mixing_ratio(data, preselected):
 """
 
 def Mixing_ratio(data, column ,preselected):
+    """Mixing_ratio_dictionary, if new species should be added please add here"""
     ratio = {} 
     for elements in preselected:
         ratio[elements[1]] = {}
+        ratio[elements[1]]["const_mix"] = {}
         for species in elements[0]:
-            value = data[species][column][elements[1]]
-            ratio[elements[1]][species] = float(value)
+            value = data[species][column][elements[1]]    
+            ratio[elements[1]]["const_mix"][species] = float(value)
     return ratio
 
 def string_fragmentation(key, indicator):
@@ -557,7 +571,7 @@ def string_fragmentation(key, indicator):
 def Selection_of_mixing(preselected_data):
     list1 =[]
     for key in preselected_data.keys():
-        list1.append([string_fragmentation(key, "'") ,  preselected_data[key]])
+        list1.append([string_fragmentation(preselected_data[key], "'") ,  key])
     
     
     return list1
