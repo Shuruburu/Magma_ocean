@@ -549,14 +549,20 @@ def Mixing_ratio(data, column ,preselected):
         ratio[elements[1]] = {}
         ratio[elements[1]]["const_mix"] = {}
         for species in elements[0]:
-            value = data[species][column][elements[1]]    
-            ratio[elements[1]]["const_mix"][species] = float(value)
+            if species == "ClH_g":
+                continue
+            elif species == "H3N_g":
+                value = data[species][column][elements[1]]    
+                ratio[elements[1]]["const_mix"]["NH3"] = float(value)
+            else:
+                value = data[species][column][elements[1]]    
+                ratio[elements[1]]["const_mix"][Adjusted_key(species)] = float(value)
     return ratio
 
 def string_fragmentation(key, indicator):
     fragments = []
     start = None  # track position of opening quote
-
+    
     for i, char in enumerate(key):
         if char == indicator:
             if start is None:
@@ -566,18 +572,26 @@ def string_fragmentation(key, indicator):
                 # closing quote found → extract substring
                 fragments.append(key[start:i])
                 start = None  # reset for next pair
-
     return fragments
+
+def Adjusted_key(key):
+    if "_g" in key:
+        key =key.replace("_g" ,"")
+    return key
 def Selection_of_mixing(preselected_data):
     list1 =[]
     for key in preselected_data.keys():
         list1.append([string_fragmentation(preselected_data[key], "'") ,  key])
     
-    
     return list1
+    
 def Add_the_domiant_species(mixing_ratio, dominant):
     for key in mixing_ratio.keys():
-        mixing_ratio[key]["dominant"] = dominant[key]
+        most =dominant[key]
+        if most == "H3N_g":    
+            mixing_ratio[key]["dominant"] = "NH3_g"
+        else:
+            mixing_ratio[key]["dominant"] = Adjusted_key(dominant[key])
     return mixing_ratio
     
 

@@ -136,6 +136,15 @@ def Write_In_the_file(filename, dictionary):
     # Overwrite the file with new content
     with open(filename, "w") as f:
         f.writelines(new_lines)
+def Eddit_Kzz(temp, presssure, eddy, z):
+    filename = "/home/shurubura/Documents/VULCAN/atm/P_T_proffile.txt"
+    with open(filename, "w") as f:
+        f.write("#      (dyne/cm )    (K)     (cm2/s)\n " )
+        f.write("   Pressure   Temp    Kzz\n")
+        for i in range(temp.size):
+            f.write("{}   {}   {}\n" .format(presssure[i], temp[i] , eddy[i]))
+            
+    
 
     
 def Load_the_excel(filename):
