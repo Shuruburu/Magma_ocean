@@ -103,8 +103,9 @@ def Find_dominat(f, line, dictionary):
         return True
 ##
 #
-def Write_In_the_file(filename, dictionary):
-    Flag = [True, True, True]
+def Write_In_the_file(filename, dictionary, pressure, number ,kzz, p_rad, T):
+    #The fix condition  has been turned off due to the problem with negative solution in vulcan
+    Flag = [False, True, True, True, True, True ]
     new_lines = []
 
     with open(filename, "r") as f:
@@ -127,22 +128,37 @@ def Write_In_the_file(filename, dictionary):
             if Flag[2] and "atm_base" in line:
                 Flag[2] = False
                 value = str(dictionary["dominant"])
-                new_lines.append(f"atm_base = '{value}'\n")
+                if value == "SO2":
+                    new_lines.append(f"atm_base = 'CO2'\n")
+                elif value == 'CH4':
+                    new_lines.append(f"atm_base = 'CO2'\n")
+                else:
+                    new_lines.append(f"atm_base = '{value}'\n")
                 continue
-
+            if Flag[3] and "P_b" in line:
+                Flag[2] = False
+                value = pressure
+                new_lines.append(f"P_b = {value}\n")
+                continue
+            if Flag[4] and "out_name" in line:
+                Flag[4] = False
+                value = number
+                new_lines.append(f"out_name = 'Simulation_number_nr={value}_kzz={kzz}_p={p_rad}_Tempreture={T}.vul'\n")
+                continue
+ 
         # Keep the original line if not modified
         new_lines.append(line)
 
     # Overwrite the file with new content
     with open(filename, "w") as f:
         f.writelines(new_lines)
-def Eddit_Kzz(temp, presssure, eddy, z):
+def Eddit_Kzz(temp, presssure, eddy):
     filename = "/home/shurubura/Documents/VULCAN/atm/P_T_proffile.txt"
     with open(filename, "w") as f:
         f.write("#      (dyne/cm )    (K)     (cm2/s)\n " )
         f.write("   Pressure   Temp    Kzz\n")
         for i in range(temp.size):
-            f.write("{}   {}   {}\n" .format(presssure[i], temp[i] , eddy[i]))
+            f.write("{}   {}   {}\n" .format(presssure[i]*1e6, temp[i] , eddy[i]))
             
     
 

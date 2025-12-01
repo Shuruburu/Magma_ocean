@@ -17,6 +17,36 @@ import pandas as pd
 import sys
 
 
+def Plot_the_groups(data, error_bar):
+    preselected, most,  preselected_abs, error_bar = Selection()
+    Plot = al.Plots(data)
+    
+    for keys in preselected.keys():
+        
+        Plot.Histograms_list( al.string_fragmentation(preselected_abs[keys] , "'") , preselected[keys], keys, most[keys], error_bar)
+
+
+def Selection():
+    data = load.Load_the_pickle(load.pickle100T280())
+    Plots =al.Plots(data)
+    keys, columns, values =al.Get_species_elements(data, start_index=0, max_elements=14)
+    most = al.classify_the_atmosphere(data, keys, "volume_mixing_ratio")
+    
+    filtered_data = al.Filter_out_data(data, "volume_mixing_ratio", tol =-16 )
+    rel_filtered = al.Filter_out_data_relative(data, "volume_mixing_ratio", most)
+    #We exclude atmospheres with too high planets
+    excluded_pressures = al.Pressure_filter(data, "pressure", tol = 50 )
+    selected_rel = al.Seleciton(rel_filtered)
+    selected_abs = al.Seleciton(filtered_data)
+    #print(selected_rel)
+    counter =al.Histograms(rel_filtered)
+    error_bar=al.Error_bars(data,counter,"volume_mixing_ratio", selected_rel, selected_abs)
+    preselected , preselected1 =al.Select_unique(selected_rel, selected_abs, excluded_pressures)
+    
+
+    return preselected, most, preselected1, error_bar
+
+
 def Classify_the_groups(data):
     keys , columns, values =al.Get_species_elements(data, start_key = "H2_g" , max_elements=14 )
     pressure =al.Integrate(data, keys, "pressure")

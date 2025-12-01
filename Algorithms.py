@@ -403,7 +403,59 @@ class Plots:
         plt.savefig("/home/shurubura/Documents/project/Magma/plots/Histogram_{}.png".format(name))
         plt.tight_layout()  # adjust layout to prevent label cutoff
         plt.show()
+    def Histograms_list(self, bins, name, key, most, error_bar):
 
+        counts = [np.log10(self.data[keys]["volume_mixing_ratio"][key]) for keys in bins]
+
+        # ---- Convert error bars to log scale ----
+        yerror = []
+        if name in error_bar:
+            for species in bins:
+                value = self.data[species]["volume_mixing_ratio"][key]
+                err = error_bar[name][f"M2_specie_{species}"]
+
+                # Avoid negative or zero values
+                if value > 0:
+                    upper_log = np.log10(value + err) - np.log10(value)
+                else:
+                    upper_log = 0
+
+                yerror.append(upper_log)
+
+        labels = bins
+        plt.figure(figsize=(12, 6))
+
+        colors = [self.color_map[k] for k in range(len(bins))]
+
+        plt.bar(
+            range(len(counts)),
+            counts,
+            color=colors,
+            yerr=yerror if len(yerror) > 0 else None,
+            capsize=5
+        )
+
+        plt.xticks(range(len(labels)), labels, rotation=90)
+        plt.xlabel('Gas Combinations')
+        plt.ylabel('The ratio between the most abundant gas')
+        plt.title(f'Histogram of {name} Gas Mixtures nr {key}')
+
+        plt.gca().invert_yaxis()  # keep the inverted axis
+
+        plt.tight_layout()
+        plt.savefig(f"/home/shurubura/Documents/project/Magma/plots/Histogram_{name}.png")
+        plt.show()
+        
+    def Plot_simple(self, x ,y , xlabel ,ylabel, name, label = "P_T_profile" ):
+        plt.plot(x , y , label = label, color = "red")
+        plt.title(name)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.legend()
+        plt.gca().invert_yaxis()
+        plt.savefig(f"/home/shurubura/Documents/project/Magma/plots/{name}.png")
+        #plt.show()
+        
 def Plot_the_Key_data(data, key,  x_axis, y_axis, log =False ):
     if log == False:
         plt.scatter(data[key][x_axis].to_numpy(), data[key][y_axis].to_numpy(),label  = key )
@@ -492,18 +544,19 @@ def Seleciton(filtered_data):
         main_list.append([j, item])
 
     return main_list
-def Select_unique(selected_data, not_rel_filtered_data):
+def Select_unique(selected_data, not_rel_filtered_data, selection_of_pressure):
+
     unique = {}
     unique_output = {}
-    unique1 = {}
+    unique_abs = {}
     for n, elements in enumerate(selected_data):
-            if elements[1] in unique:
+        if elements[1] in unique or elements[0] in selection_of_pressure.keys():
                 continue
-            else:
+        else:
                 unique[elements[1]]= elements[0]
                 unique_output[elements[0]] = elements[1]
-                unique1[elements[0]] = not_rel_filtered_data[n][1]
-    return unique_output, unique1
+                unique_abs[elements[0]] = not_rel_filtered_data[n][1]
+    return unique_output, unique_abs
 
 
 
@@ -528,20 +581,6 @@ def Element_ratios(data):
 
 
 
-
-
-
-
-
-"""
-def Mixing_ratio(data, preselected):
-    keys, columns, values =Get_species_elements(data, start_index=0, max_elements=14)
-    ratio = {}
-    for elements in keys:
-        ratio[elements]=data[elements]["volume_mixing_ratio"] 
-    return ratio
-"""
-
 def Mixing_ratio(data, column ,preselected):
     """Mixing_ratio_dictionary, if new species should be added please add here"""
     ratio = {} 
@@ -551,6 +590,9 @@ def Mixing_ratio(data, column ,preselected):
         for species in elements[0]:
             if species == "ClH_g":
                 continue
+            elif species  == "O2S_g":
+                value = data[species][column][elements[1]]    
+                ratio[elements[1]]["const_mix"]["SO2"] = float(value)
             elif species == "H3N_g":
                 value = data[species][column][elements[1]]    
                 ratio[elements[1]]["const_mix"]["NH3"] = float(value)
@@ -589,29 +631,168 @@ def Add_the_domiant_species(mixing_ratio, dominant):
     for key in mixing_ratio.keys():
         most =dominant[key]
         if most == "H3N_g":    
-            mixing_ratio[key]["dominant"] = "NH3_g"
+            mixing_ratio[key]["dominant"] = "NH3"
+        elif most == "O2S_g":
+            mixing_ratio[key]["dominant"] = "SO2"
         else:
             mixing_ratio[key]["dominant"] = Adjusted_key(dominant[key])
     return mixing_ratio
+def Atm_base(mixing_ratio):
+    list1 =  []
+    for key in mixing_ratio.keys():
+        dist  = mixing_ratio[key]["const_mix"]
+        for species in dist.keys():
+            #
+            continue
+def Pressure_filter(data, column , tol = 50):        
+    filtered_data = {}
+    for j, values in enumerate(data["atmosphere"][column]):
+        if values > tol:
+            filtered_data[j] = values
+        else:
+            continue
     
+    filtered_data[j] = values
+    return filtered_data
 
 
+class Atmosphere_model :
+    def __init__(self, path, number, kzz, data):
+        self.config = path
+        self.number = number
+        self.kzz = kzz
+        self.data = data 
+        self.p_surf    = data['atmosphere']['pressure'][number]
+        logp_surf = np.log10(self.p_surf)
+        self.logp      = np.linspace(logp_surf,-8, 100)
+        self. pressures = 10**self.logp
+        self.T_eq = self.data['atmosphere']['temperature'][number]
+    def Adiabat_pressure(self, p_rad =1):
+    
+        #K_z  =  10000
+        
+        self.tempretures=  self.T_eq*np.ones(self.pressures.size)
+        
+        
+        # radiating pressure level (where the troposphere meets the stratosphere): units bar
 
+        T_strat = self.T_eq #* 2**(-1/2) # the skin temperature approximation
+        R_gas = 8314.5 # gas constant: units (m/s^2)/K  <---- different unit than the standard one 
+        mmw   = self.data['atmosphere']['molar_mass'][self.number]*1e3 # mean molecular weight: units g/mol
+        cp    = 820 # heat capacity, the value here is for CO2: units SI
+        K_adiabat = R_gas / (mmw*cp) # the 'adiabatic index'
 
+        T_adia_from_Prad = np.ones_like(self.logp)
+        for i, p in enumerate(self.pressures):
+            T_adia_from_Prad[i] = T_strat*(p/p_rad)**(K_adiabat)
+            if T_adia_from_Prad[i] < T_strat: T_adia_from_Prad[i] = T_strat
+        
+        
+        self.temperatures = T_adia_from_Prad
+        self.eddy = np.ones(self.pressures.size)*self.kzz
+        #z = np.arange(0, pressures.size)
+    def Adiabat_tempreture(self, ground_tempreture = 900):
+        self.tempretures = self.T_eq*np.ones(self.pressures.size)
+        T_surface = ground_tempreture  
+        
+        
+        R_gas = 8314.5
+        mmw   = self.data['atmosphere']['molar_mass'][self.number]*1e3 # mean molecular weight: units g/mol
+        cp    = 820 # heat capacity, the value here is for CO2: units SI
+        K_adiabat = R_gas / (mmw*cp) # the 'adiabatic index'
+        p_rad = self.p_surf*(self.T_eq/T_surface)**(1/K_adiabat)
+        T_adia_from_Prad = np.ones_like(self.logp)
+        for i, p in enumerate(self.pressures):
+            T_adia_from_Prad[i] = self.T_eq*(p/p_rad)**(K_adiabat)
+            if T_adia_from_Prad[i] < self.T_eq: T_adia_from_Prad[i] = self.T_eq
+            
+    
+        self.temperatures = T_adia_from_Prad
+        self.eddy = np.ones(self.pressures.size)*self.kzz
+        
+    def Grid(self ):
+        # first, make pressure grid
+        K_z  = self.kzz
+        pressures = 10**self.logp
+        self.temperatures=  self.T_eq*np.ones(pressures.size)
+        self.eddy = np.ones(pressures.size)*K_z
+        z = np.arange(0, pressures.size)
+    
+    def Eddy_simulate(self):
+        ##################
+        # Eddy diffusion #
+        ################## Work in progress
+        # Make a different eddy diffusion profile
+        # Constant
+        deep_Kzz = self.kzz
+        Edd_const = np.ones_like(self.logp) * deep_Kzz
 
+        # Deep Kzz then increase as a power law in pressure to a maximum
+        p_trans = 1
+        slope   = -0.4 # in logp units
+        max_Kzz = 1e7
 
+        Edd_power_law = np.ones_like(self.logp)
+        for i, p in enumerate(self.pressures):
+            Edd_power_law[i] = deep_Kzz*(p/p_trans)**(slope)
+            if Edd_power_law[i] < deep_Kzz: Edd_power_law[i] = deep_Kzz
+            if Edd_power_law[i] > max_Kzz:  Edd_power_law[i] = max_Kzz
 
+        # Deep Kzz then drop to a lower value before increasing as a power law in pressure
+        trans_Kzz = 1e3
 
+        Edd_reduce = np.ones_like(self.logp)
+        for i, p in enumerate(self.pressures):
+            Edd_reduce[i] = trans_Kzz*(p/p_trans)**(slope)
+            if p > p_trans: Edd_reduce[i] = deep_Kzz
+            if Edd_reduce[i] > max_Kzz:  Edd_reduce[i] = max_Kzz
 
+    def Build_the_atmosphere(self):
+        return self.pressures, self.temperatures, self.eddy
 
+""" TO DO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"""
+# could add to the class if needed 
+def Error_bars(data, counter, column, selected_rel, selected_abs):
+    error_bar = {}
 
+    for keys in counter.keys():
+        for element in selected_rel:
 
+            if element[1] == keys:
 
+                species = string_fragmentation(selected_abs[element[0]][1], "'")
 
+                for specie in species:
+                    value = float(data[specie][column][element[0]])
 
+                    if keys not in error_bar:
+                        error_bar[keys] = {}
 
+                    mean_key = f"mean_specie_{specie}"
+                    count_key = f"nr_elements_{specie}"
+                    m2_key = f"M2_specie_{specie}"   # running sum of squared deviations
 
+                    # First occurrence of this species
+                    if mean_key not in error_bar[keys]:
+                        error_bar[keys][mean_key] = float(value)
+                        error_bar[keys][count_key] = float(1.0)
+                        error_bar[keys][m2_key] = float(0.0)
+                    
+                    else:
+                        old_mean = float(error_bar[keys][mean_key])
+                        old_count = float(error_bar[keys][count_key])
+                        old_m2 = float(error_bar[keys][m2_key])
 
+                        new_count = old_count + 1.0
+                        delta = value - old_mean
+                        new_mean = old_mean + delta / new_count
+                        delta2 = value - new_mean
 
+                        new_m2 = old_m2 + delta * delta2
 
+                        error_bar[keys][mean_key] = new_mean
+                        error_bar[keys][count_key] = new_count
+                        error_bar[keys][m2_key] = new_m2
+
+    return error_bar
         
